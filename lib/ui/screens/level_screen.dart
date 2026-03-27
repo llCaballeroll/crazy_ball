@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// PAQUETE DE IDIOMAS
+import 'package:flutter_localization/flutter_localization.dart';
+import '../../l10n/app_locale.dart';
 
 class LevelScreen extends StatefulWidget {
   const LevelScreen({super.key});
@@ -14,7 +17,6 @@ class _LevelScreenState extends State<LevelScreen> {
   late ScrollController _scrollController;
   late List<Milestone> _milestones;
 
-  // Alturas fijas para cálculo matemático de scroll
   final double _islandTotalHeight = 260.0; 
   final double _rewardTotalHeight = 120.0; 
 
@@ -29,7 +31,6 @@ class _LevelScreenState extends State<LevelScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Generamos y luego invertimos para que el nivel más alto esté arriba
     _milestones = _generateMilestones().reversed.toList();
   }
 
@@ -38,7 +39,6 @@ class _LevelScreenState extends State<LevelScreen> {
     if (!mounted) return;
     
     setState(() {
-      // Usamos la misma clave que en home.dart
       _currentScore = prefs.getInt('highScore') ?? 0;
     });
     
@@ -76,10 +76,9 @@ class _LevelScreenState extends State<LevelScreen> {
     final double verticalPadding = screenHeight / 2;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF4EC0E9), // Fondo clásico de Crazy Ball
+      backgroundColor: const Color(0xFF4EC0E9), 
       body: Stack(
         children: [
-          // --- LISTA DE NIVELES ---
           ListView.builder(
             controller: _scrollController,
             padding: EdgeInsets.symmetric(vertical: verticalPadding),
@@ -104,7 +103,6 @@ class _LevelScreenState extends State<LevelScreen> {
             },
           ),
 
-          // --- HEADER FLOTANTE ---
           Align(
             alignment: Alignment.topCenter,
             child: SafeArea(
@@ -122,54 +120,46 @@ class _LevelScreenState extends State<LevelScreen> {
     );
   }
 
-  // --- ESTRUCTURA DE PROGRESIÓN DE CRAZY BALL ---
   List<Milestone> _generateMilestones() {
     return [
-      // INICIO
-      Milestone(0, 'arena_cielo.png', type: MilestoneType.arena, label: "CIELO CLARO"),
-      Milestone(20, 'skin_basket.png', type: MilestoneType.reward, label: "Bola de Baloncesto"),
-      Milestone(40, 'skin_8ball.png', type: MilestoneType.reward, label: "Bola 8 Mágica"),
+      Milestone(0, 'n_1.jpeg', type: MilestoneType.arena, labelBuilder: (ctx) => AppLocale.clearSky.getString(ctx)),
+      Milestone(20, 'ball_level_01.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.basketball.getString(ctx)),
+      Milestone(40, 'ball_level_02.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.magic8Ball.getString(ctx)),
       
-      // ARENA 2
-      Milestone(60, 'arena_noche.png', type: MilestoneType.arena, label: "NOCHE ESTELAR"),
-      Milestone(90, 'skin_eye.png', type: MilestoneType.reward, label: "Ojo de Monstruo"),
-      Milestone(120, 'skin_ninja.png', type: MilestoneType.reward, label: "Bola Ninja"),
+      Milestone(60, 'n_2.jpeg', type: MilestoneType.arena, labelBuilder: (ctx) => AppLocale.starryNight.getString(ctx)),
+      Milestone(90, 'ball_level_03.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.monsterEye.getString(ctx)),
+      Milestone(120, 'ball_level_04.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.ninjaBall.getString(ctx)),
       
-      // ARENA 3
-      Milestone(150, 'arena_neon.png', type: MilestoneType.arena, label: "MUNDO NEÓN"),
-      Milestone(200, 'skin_robot.png', type: MilestoneType.reward, label: "Cyborg Ball"),
-      Milestone(250, 'skin_fire.png', type: MilestoneType.reward, label: "Núcleo de Fuego"),
+      Milestone(150, 'n_3.jpeg', type: MilestoneType.arena, labelBuilder: (ctx) => AppLocale.neonWorld.getString(ctx)),
+      Milestone(200, 'ball_level_05.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.cyborgBall.getString(ctx)),
+      Milestone(250, 'ball_level_06.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.fireCore.getString(ctx)),
       
-      // ARENA 4
-      Milestone(300, 'arena_volcan.png', type: MilestoneType.arena, label: "CUEVA DE LAVA"),
-      Milestone(400, 'skin_dragon.png', type: MilestoneType.reward, label: "Huevo de Dragón"),
+      Milestone(300, 'n_4.jpeg', type: MilestoneType.arena, labelBuilder: (ctx) => AppLocale.lavaCave.getString(ctx)),
+      Milestone(400, 'ball_level_07.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.dragonEgg.getString(ctx)),
       
-      // ARENA 5
-      Milestone(500, 'arena_espacio.png', type: MilestoneType.arena, label: "GALAXIA CERO"),
-      Milestone(750, 'skin_gold.png', type: MilestoneType.reward, label: "Bola de Oro Puro"),
+      Milestone(500, 'n_5.jpeg', type: MilestoneType.arena, labelBuilder: (ctx) => AppLocale.zeroGalaxy.getString(ctx)),
+      Milestone(750, 'ball_level_08.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.pureGoldBall.getString(ctx)),
       
-      // ARENA INFINITA
-      Milestone(1000, 'arena_hacker.png', type: MilestoneType.arena, label: "EL GLITCH"),
-      Milestone(9999, 'skin_diamond.png', type: MilestoneType.reward, label: "Diamante Supremo"),
+      Milestone(1000, 'n_6.jpeg', type: MilestoneType.arena, labelBuilder: (ctx) => AppLocale.theGlitch.getString(ctx)),
+      Milestone(9999, 'ball_level_09.png', type: MilestoneType.reward, labelBuilder: (ctx) => AppLocale.supremeDiamond.getString(ctx)),
     ];
   }
 }
 
-// --- CLASES Y WIDGETS ---
 enum MilestoneType { arena, reward }
 
 class Milestone {
   final int score;
   final String assetName;
   final MilestoneType type;
-  final String label;
+  // Cambiamos string fijo por un constructor dinámico para el idioma
+  final String Function(BuildContext) labelBuilder;
 
-  Milestone(this.score, this.assetName, {this.type = MilestoneType.reward, this.label = ''});
+  Milestone(this.score, this.assetName, {this.type = MilestoneType.reward, required this.labelBuilder});
 
   String getFullPath() {
-    // Aquí puedes ajustar las rutas reales de tus carpetas cuando tengas las imágenes
-    if (type == MilestoneType.arena) return 'assets/images/arenas/$assetName';
-    return 'assets/images/skins/$assetName';
+    if (type == MilestoneType.arena) return 'assets/images/wallpapers/$assetName';
+    return 'assets/images/ball/level/$assetName';
   }
 }
 
@@ -196,19 +186,14 @@ class _TimelineItem extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // BARRA LATERAL (LÍNEA DE TIEMPO)
             SizedBox(
               width: 80,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
+                  Container(width: 8, color: isPathFilled ? const Color(0xFFFFD700) : Colors.black26),
                   Container(
-                    width: 8,
-                    color: isPathFilled ? const Color(0xFFFFD700) : Colors.black26, // Amarillo para el camino activo
-                  ),
-                  Container(
-                    width: 45,
-                    height: 28,
+                    width: 45, height: 28,
                     decoration: BoxDecoration(
                       color: isUnlocked ? const Color(0xFFFFD700) : Colors.grey[400],
                       borderRadius: BorderRadius.circular(14),
@@ -216,17 +201,12 @@ class _TimelineItem extends StatelessWidget {
                       boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(2, 2))]
                     ),
                     child: Center(
-                      child: Text(
-                        "${milestone.score}",
-                        style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w900, fontFamily: 'Impact'),
-                      ),
+                      child: Text("${milestone.score}", style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w900, fontFamily: 'Impact')),
                     ),
                   ),
                 ],
               ),
             ),
-
-            // CONTENIDO
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 20, 20, 20),
@@ -263,7 +243,6 @@ class _ArenaCard extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Fondo de la tarjeta simulando la arena
               Container(
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
@@ -277,11 +256,9 @@ class _ArenaCard extends StatelessWidget {
                   child: ColorFiltered(
                     colorFilter: isUnlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply) : greyscaleFilter,
                     child: Container(
-                      width: constraints.maxWidth,
-                      height: constraints.maxHeight - 40,
-                      color: Colors.blueAccent.withOpacity(0.3), // Placeholder mientras pones tus imágenes
-                      child: const Center(child: Icon(Icons.image, size: 50, color: Colors.white54)),
-                      // Image.asset(milestone.getFullPath(), fit: BoxFit.cover),
+                      width: constraints.maxWidth, height: constraints.maxHeight - 40,
+                      color: Colors.blueAccent.withOpacity(0.3), 
+                      child: Image.asset(milestone.getFullPath(), fit: BoxFit.cover),
                     ),
                   ),
                 ),
@@ -289,7 +266,7 @@ class _ArenaCard extends StatelessWidget {
               Positioned(
                 bottom: 5,
                 child: Text(
-                  milestone.label,
+                  milestone.labelBuilder(context),
                   style: const TextStyle(
                     fontFamily: 'Impact', color: Colors.white, fontSize: 24, letterSpacing: 2,
                     shadows: [Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(2, 2))]
@@ -326,8 +303,7 @@ class _RewardCard extends StatelessWidget {
       child: Center(
         child: Opacity(
           opacity: isUnlocked ? 1.0 : 0.4,
-          child: const Icon(Icons.sports_basketball_rounded, size: 40, color: Colors.white70), // Placeholder
-          // Image.asset(milestone.getFullPath(), fit: BoxFit.contain),
+          child: Image.asset(milestone.getFullPath(), fit: BoxFit.contain),
         ),
       ),
     );
@@ -340,12 +316,12 @@ class _RewardCard extends StatelessWidget {
           crossAxisAlignment: isImageLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
           children: [
             Text(
-              isUnlocked ? "¡DESBLOQUEADO!" : "BLOQUEADO",
+              isUnlocked ? AppLocale.unlocked.getString(context) : AppLocale.locked.getString(context),
               style: TextStyle(fontFamily: 'Impact', color: isUnlocked ? const Color(0xFF9BE15D) : Colors.white54, fontSize: 16, letterSpacing: 1.2),
             ),
             const SizedBox(height: 4),
             Text(
-              milestone.label,
+              milestone.labelBuilder(context),
               style: const TextStyle(fontFamily: 'Impact', color: Colors.white, fontSize: 18),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
@@ -400,12 +376,12 @@ class _GlassHeader extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text("CAMINO DE TROFEOS", style: TextStyle(fontFamily: 'Impact', fontSize: 14, color: Colors.white70, letterSpacing: 1.5)),
-                    Text("RÉCORD: $score", style: const TextStyle(fontFamily: 'Impact', fontSize: 24, color: Color(0xFFFFD700), letterSpacing: 1.2, shadows: [Shadow(color: Colors.black87, blurRadius: 2, offset: Offset(1, 1))])),
+                    Text(AppLocale.trophyRoad.getString(context), style: const TextStyle(fontFamily: 'Impact', fontSize: 14, color: Colors.white70, letterSpacing: 1.5)),
+                    Text("${AppLocale.record.getString(context).toUpperCase()}: $score", style: const TextStyle(fontFamily: 'Impact', fontSize: 24, color: Color(0xFFFFD700), letterSpacing: 1.2, shadows: [Shadow(color: Colors.black87, blurRadius: 2, offset: Offset(1, 1))])),
                   ],
                 ),
               ),
-              const SizedBox(width: 45), // Para equilibrar el botón de retroceso
+              const SizedBox(width: 45),
             ],
           ),
         ),

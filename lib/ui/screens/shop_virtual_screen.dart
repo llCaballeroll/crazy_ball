@@ -1,31 +1,37 @@
 import 'dart:math';
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flame_audio/flame_audio.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+// PAQUETE DE IDIOMAS
+import 'package:flutter_localization/flutter_localization.dart'; 
+import '../../l10n/app_locale.dart';
 
+import '../../services/sound_manager.dart';
 import 'shop_screen.dart';
 import '../../services/ad_state_manager.dart';
 
 // ==========================================
 // MODO DESARROLLADOR (DEBUG)
-// Cambia a true para desbloquear todas las skins instantáneamente
-const bool kDebugUnlockAll = false; 
+const bool kDebugUnlockAll = true;
 // ==========================================
 
 // --- MODELO DE SKINS ---
 class SkinItem {
   final String id;
+  // Usamos una función para traducir el nombre en tiempo real sin romper el estado
+  final String Function(BuildContext) nameBuilder; 
   final String path;
   final int requiredAmount;
   final bool isLevelReward;
   final Color rarityColor;
 
   SkinItem({
-    required this.id, 
-    required this.path, 
-    required this.requiredAmount, 
+    required this.id,
+    required this.nameBuilder,
+    required this.path,
+    required this.requiredAmount,
     this.isLevelReward = false,
     required this.rarityColor,
   });
@@ -41,23 +47,90 @@ class ShopVirtualScreen extends StatefulWidget {
 class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
   int _boxes = 0;
   int _highScore = 0;
-  String _selectedSkin = 'ball_standar';
+  String _selectedSkin = 'ball_default';
   Map<String, int> _cardsOwned = {};
-  bool _canClaimDaily = false;
   
+  bool _canClaimDaily = false;
+  int _freeBoxesToday = 0; 
+
   RewardedAd? _rewardedAd;
 
-  // --- INVENTARIO DE SKINS REORGANIZADO ---
-  final List<SkinItem> _trophySkins = [
-    SkinItem(id: 'ball_standar', path: 'assets/images/balls/ball_standar.png', requiredAmount: 0, rarityColor: Colors.white70),
-    ...List.generate(9, (i) => SkinItem(id: 'ball_nivel_0${i+1}', path: 'assets/images/balls/level/ball_nivel_0${i+1}.png', requiredAmount: (i+1)*50, isLevelReward: true, rarityColor: Colors.cyanAccent))
+  // --- INVENTARIO DE SKINS ---
+  late final List<SkinItem> _trophySkins = [
+    SkinItem(
+      id: 'ball_default',
+      nameBuilder: (context) => AppLocale.classicSkin.getString(context),
+      path: 'assets/images/ball/ball_default.png',
+      requiredAmount: 0,
+      rarityColor: Colors.white70,
+    ),
+    ...List.generate(
+      9,
+      (i) => SkinItem(
+        id: 'ball_level_0${i + 1}',
+        nameBuilder: (context) => "${AppLocale.levelSkin.getString(context)} ${i + 1}",
+        path: 'assets/images/ball/level/ball_level_0${i + 1}.png',
+        requiredAmount: (i + 1) * 50,
+        isLevelReward: true,
+        rarityColor: Colors.cyanAccent,
+      ),
+    ),
   ];
-  
-  final List<SkinItem> _commonSkins = List.generate(3, (i) => SkinItem(id: 'ball_common_0${i+1}', path: 'assets/images/balls/pay/common/ball_common_0${i+1}.png', requiredAmount: 49, rarityColor: const Color(0xFF9BE15D)));
-  final List<SkinItem> _rareSkins = List.generate(3, (i) => SkinItem(id: 'ball_rare_0${i+1}', path: 'assets/images/balls/pay/rare/ball_rare_0${i+1}.png', requiredAmount: 99, rarityColor: Colors.blueAccent));
-  final List<SkinItem> _epicSkins = List.generate(3, (i) => SkinItem(id: 'ball_epic_0${i+1}', path: 'assets/images/balls/pay/epic/ball_epic_0${i+1}.png', requiredAmount: 149, rarityColor: Colors.purpleAccent));
-  final List<SkinItem> _legendarySkins = List.generate(3, (i) => SkinItem(id: 'ball_legendary_0${i+1}', path: 'assets/images/balls/pay/legendary/ball_legendary_0${i+1}.png', requiredAmount: 199, rarityColor: Colors.orangeAccent));
-  final List<SkinItem> _championSkins = List.generate(3, (i) => SkinItem(id: 'ball_champion_0${i+1}', path: 'assets/images/balls/pay/champion/ball_champion_0${i+1}.png', requiredAmount: 300, rarityColor: Colors.redAccent));
+
+  late final List<SkinItem> _commonSkins = List.generate(
+    4,
+    (i) => SkinItem(
+      id: 'ball_common_0${i + 1}',
+      nameBuilder: (context) => AppLocale.commonSkin.getString(context),
+      path: 'assets/images/ball/pay/common/ball_common_0${i + 1}.png',
+      requiredAmount: 49,
+      rarityColor: const Color(0xFF9BE15D),
+    ),
+  );
+
+  late final List<SkinItem> _rareSkins = List.generate(
+    3,
+    (i) => SkinItem(
+      id: 'ball_rare_0${i + 1}',
+      nameBuilder: (context) => AppLocale.rareSkin.getString(context),
+      path: 'assets/images/ball/pay/rare/ball_rare_0${i + 1}.png',
+      requiredAmount: 99,
+      rarityColor: Colors.blueAccent,
+    ),
+  );
+
+  late final List<SkinItem> _epicSkins = List.generate(
+    3,
+    (i) => SkinItem(
+      id: 'ball_epic_0${i + 1}',
+      nameBuilder: (context) => AppLocale.epicSkin.getString(context),
+      path: 'assets/images/ball/pay/epic/ball_epic_0${i + 1}.png',
+      requiredAmount: 149,
+      rarityColor: Colors.purpleAccent,
+    ),
+  );
+
+  late final List<SkinItem> _legendarySkins = List.generate(
+    3,
+    (i) => SkinItem(
+      id: 'ball_legendary_0${i + 1}',
+      nameBuilder: (context) => AppLocale.legendarySkin.getString(context),
+      path: 'assets/images/ball/pay/legendary/ball_legendary_0${i + 1}.png',
+      requiredAmount: 199,
+      rarityColor: Colors.orangeAccent,
+    ),
+  );
+
+  late final List<SkinItem> _championSkins = List.generate(
+    3,
+    (i) => SkinItem(
+      id: 'ball_champion_0${i + 1}',
+      nameBuilder: (context) => AppLocale.championSkin.getString(context),
+      path: 'assets/images/ball/pay/champion/ball_champion_0${i + 1}.png',
+      requiredAmount: 300,
+      rarityColor: Colors.redAccent,
+    ),
+  );
 
   @override
   void initState() {
@@ -67,33 +140,43 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
     _loadRewardedAd();
   }
 
-  void _playShopMusic() async {
-    FlameAudio.bgm.stop();
-    FlameAudio.bgm.play('shop.mp3', volume: 0.6);
+  void _playShopMusic() {
+    SoundManager.instance.playMusic('shop');
   }
 
   @override
   void dispose() {
-    FlameAudio.bgm.stop();
     _rewardedAd?.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    String lastDailyStr = prefs.getString('last_daily_box') ?? '';
     DateTime now = DateTime.now();
     String todayStr = "${now.year}-${now.month}-${now.day}";
+
+    String lastDailyStr = prefs.getString('last_daily_box') ?? '';
+    String lastFreeBoxStr = prefs.getString('last_freebox_date') ?? '';
     
+    if (lastFreeBoxStr != todayStr) {
+      await prefs.setInt('free_boxes_today', 0);
+      await prefs.setString('last_freebox_date', todayStr);
+      _freeBoxesToday = 0;
+    } else {
+      _freeBoxesToday = prefs.getInt('free_boxes_today') ?? 0;
+    }
+
     Map<String, int> loadedCards = {};
     for (var list in [_commonSkins, _rareSkins, _epicSkins, _legendarySkins, _championSkins]) {
-      for (var skin in list) { loadedCards[skin.id] = prefs.getInt('cards_${skin.id}') ?? 0; }
+      for (var skin in list) {
+        loadedCards[skin.id] = prefs.getInt('cards_${skin.id}') ?? 0;
+      }
     }
 
     setState(() {
       _boxes = prefs.getInt('owned_boxes') ?? 0;
       _highScore = prefs.getInt('highScore') ?? 0;
-      _selectedSkin = prefs.getString('selected_skin') ?? 'ball_standar';
+      _selectedSkin = prefs.getString('selected_skin') ?? 'ball_default';
       _canClaimDaily = (lastDailyStr != todayStr);
       _cardsOwned = loadedCards;
     });
@@ -112,7 +195,7 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
     await prefs.setString('last_daily_box', "${now.year}-${now.month}-${now.day}");
     await _saveBoxes(_boxes + 1);
     setState(() => _canClaimDaily = false);
-    _showFeedback("¡CAJA DIARIA OBTENIDA!", Colors.green);
+    _showFeedback(AppLocale.dailyBoxClaimed.getString(context), Colors.green);
   }
 
   void _loadRewardedAd() {
@@ -127,37 +210,63 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
     );
   }
 
+  Future<void> _grantFreeBoxReward() async {
+    _freeBoxesToday++;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('free_boxes_today', _freeBoxesToday);
+    await _saveBoxes(_boxes + 1);
+    
+    String claimMsg = AppLocale.boxClaimedToday.getString(context).replaceAll('%1', _freeBoxesToday.toString());
+    _showFeedback(claimMsg, Colors.green);
+    setState(() {});
+  }
+
   void _watchAdForBox() {
+    if (_freeBoxesToday >= 5) {
+      _showFeedback(AppLocale.dailyLimitReached.getString(context), Colors.redAccent);
+      return;
+    }
+
     if (globalAdsRemoved) {
-      _saveBoxes(_boxes + 1);
-      _showFeedback("¡CAJA GRATIS (PREMIUM)!", Colors.purpleAccent);
+      _grantFreeBoxReward();
       return;
     }
+
     if (_rewardedAd == null) {
-      _showFeedback("Cargando anuncio...", Colors.orange);
+      _showFeedback(AppLocale.loadingAd.getString(context), Colors.orange);
+      _loadRewardedAd();
       return;
     }
-    _rewardedAd!.show(onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-      _saveBoxes(_boxes + 1);
-      _showFeedback("¡CAJA OBTENIDA!", Colors.green);
-    });
+    
+    _rewardedAd!.show(
+      onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+        _grantFreeBoxReward();
+      },
+    );
     _rewardedAd = null;
     _loadRewardedAd();
   }
 
   Future<void> _openBox() async {
     if (_boxes <= 0) {
-      _showFeedback("NO TIENES CAJAS", Colors.redAccent);
+      _showFeedback(AppLocale.noBoxes.getString(context), Colors.redAccent);
       return;
     }
     await _saveBoxes(_boxes - 1);
-    
+    SoundManager.instance.sfxPoder(); 
+
     final prefs = await SharedPreferences.getInstance();
     final random = Random();
-    List<SkinItem> allPaySkins = [..._commonSkins, ..._rareSkins, ..._epicSkins, ..._legendarySkins, ..._championSkins];
-    
+    List<SkinItem> allPaySkins = [
+      ..._commonSkins, ..._rareSkins, ..._epicSkins, ..._legendarySkins, ..._championSkins,
+    ];
+
+    List<SkinItem> wonCards = [];
+
     for (int i = 0; i < 5; i++) {
       SkinItem wonSkin = allPaySkins[random.nextInt(allPaySkins.length)];
+      wonCards.add(wonSkin); 
+
       int currentVal = _cardsOwned[wonSkin.id] ?? 0;
       if (currentVal < wonSkin.requiredAmount) {
         currentVal++;
@@ -165,15 +274,15 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
         _cardsOwned[wonSkin.id] = currentVal;
       }
     }
+    
     setState(() {});
-    _showFeedback("¡+5 CARTAS! OBTENER MÁS CAJAS", Colors.blueAccent);
+    if (mounted) _showGachaResultDialog(context, wonCards);
   }
 
   Future<void> _selectSkin(SkinItem skin) async {
     bool isUnlocked = false;
-    
-    // LÓGICA DEBUG + PRODUCCIÓN
-    if (kDebugUnlockAll || skin.id == 'ball_standar') {
+
+    if (kDebugUnlockAll || skin.id == 'ball_default') {
       isUnlocked = true;
     } else if (skin.isLevelReward) {
       isUnlocked = _highScore >= skin.requiredAmount;
@@ -185,31 +294,139 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('selected_skin', skin.id);
       setState(() => _selectedSkin = skin.id);
+      SoundManager.instance.sfxBote();
     } else {
-      _showFeedback("SKIN BLOQUEADA", Colors.redAccent);
+      _showFeedback(AppLocale.skinLocked.getString(context), Colors.redAccent);
     }
   }
 
   void _showFeedback(String msg, Color color) {
     ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(fontFamily: 'Impact', fontSize: 18, color: Colors.white, letterSpacing: 1.2), textAlign: TextAlign.center), 
-      backgroundColor: color,
-      duration: const Duration(seconds: 2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(20),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(fontFamily: 'Impact', fontSize: 16, color: Colors.white, letterSpacing: 1.2), textAlign: TextAlign.center),
+        backgroundColor: color,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+      ),
+    );
+  }
+
+  void _showGachaResultDialog(BuildContext context, List<SkinItem> items) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: double.infinity,
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF1A2744), Color(0xFF0F172A)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: const Color(0xFFFFD700), width: 3),
+            boxShadow: [BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 25, bottom: 10),
+                child: Text(
+                  AppLocale.newCards.getString(context),
+                  style: const TextStyle(color: Color(0xFFFFD700), fontFamily: 'Impact', fontSize: 32, letterSpacing: 2.0, shadows: [Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(2, 2))]),
+                ).animate().scaleXY(begin: 0.5, end: 1.0, duration: 500.ms, curve: Curves.elasticOut),
+              ),
+              const Divider(color: Colors.white24, thickness: 2, indent: 40, endIndent: 40),
+              
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 15,
+                    runSpacing: 15,
+                    children: items.map((item) => _buildRewardCard(item)).toList(),
+                  ),
+                ),
+              ),
+              
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF9BE15D),
+                      foregroundColor: Colors.black87,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(color: Colors.black87, width: 3)),
+                      elevation: 8,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(AppLocale.collect.getString(context), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, fontFamily: 'Impact', letterSpacing: 1.5)),
+                  ),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRewardCard(SkinItem item) {
+    return FadeInUp(
+      duration: const Duration(milliseconds: 400),
+      child: Container(
+        width: 90,
+        height: 120,
+        decoration: BoxDecoration(
+          color: item.rarityColor.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: item.rarityColor, width: 2),
+          boxShadow: [BoxShadow(color: item.rarityColor.withOpacity(0.2), blurRadius: 8)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Image.asset(item.path, fit: BoxFit.contain, errorBuilder: (_,__,___) => Icon(Icons.sports_baseball, color: item.rarityColor)),
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(color: Colors.black87, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)), border: Border(top: BorderSide(color: item.rarityColor, width: 2))),
+              child: Column(
+                children: [
+                  Text(
+                    item.nameBuilder(context),
+                    style: TextStyle(color: item.rarityColor, fontSize: 10, fontFamily: 'Impact', letterSpacing: 1.0),
+                    textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                  const Text("+1", style: TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Impact')),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E293B), 
+      backgroundColor: const Color(0xFF4EC0E9),
       body: SafeArea(
         child: Column(
           children: [
-            // --- HEADER ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Row(
@@ -217,75 +434,102 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      padding: const EdgeInsets.all(10), 
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black87, width: 3)), 
-                      child: const Icon(Icons.arrow_back_rounded, size: 28, color: Colors.black87)
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black87, width: 3)),
+                      child: const Icon(Icons.arrow_back_rounded, size: 28, color: Colors.black87),
                     ),
                   ),
-                  const Expanded(child: Center(child: _BorderedText(text: "INVENTARIO", fontSize: 36, fillColor: Colors.white, strokeColor: Colors.black87))),
-                  const SizedBox(width: 48), 
+                  const Spacer(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset('assets/images/principales/chest.png', width: 30, height: 30, errorBuilder: (_,__,___) => const Icon(Icons.inventory_2_rounded, color: Color(0xFFFFD700), size: 28)),
+                      const SizedBox(width: 8),
+                      _BorderedText(
+                        text: "${AppLocale.mysteryBoxes.getString(context)}: $_boxes", 
+                        fontSize: 20, fillColor: const Color(0xFFFFD700), strokeColor: Colors.black87, strokeWidth: 4
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            // --- SECCIÓN GACHA ---
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF334155),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black87, width: 4),
-                boxShadow: const [BoxShadow(color: Colors.black45, offset: Offset(0, 6))],
-              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.inventory_2_rounded, color: Colors.blueAccent, size: 36),
+                      Expanded(
+                        child: _ActionCard(
+                          icon: Icons.unarchive_rounded,
+                          title: AppLocale.open.getString(context),
+                          gradientColors: _boxes > 0 ? [const Color(0xFF1565C0), const Color(0xFF42A5F5)] : [Colors.grey[700]!, Colors.grey[500]!],
+                          onTap: _openBox,
+                          isPulsing: _boxes > 0,
+                        ),
+                      ),
                       const SizedBox(width: 10),
-                      _BorderedText(text: "CAJAS: $_boxes", fontSize: 32, fillColor: const Color(0xFFFFD700), strokeColor: Colors.black87),
+                      Expanded(
+                        child: _ActionCard(
+                          icon: Icons.storefront_rounded,
+                          title: AppLocale.buy.getString(context),
+                          gradientColors: const [Color(0xFFE65100), Color(0xFFFFCA28)],
+                          onTap: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (context) => const ShopRealScreen()));
+                            _loadData();
+                          },
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  
+                  const SizedBox(height: 10),
+
                   if (_canClaimDaily) ...[
-                    _PremiumButton(text: "CAJA DIARIA GRATIS", icon: Icons.card_giftcard_rounded, gradient: const [Colors.green, Colors.lightGreen], onTap: _claimDaily)
-                      .animate().scaleXY(begin: 0.8, end: 1.0, duration: 400.ms, curve: Curves.easeOutBack),
-                    const SizedBox(height: 12),
+                    _ActionCard(
+                      icon: Icons.card_giftcard_rounded,
+                      title: AppLocale.claimDailyBox.getString(context),
+                      gradientColors: const [Color(0xFF1B5E20), Color(0xFF66BB6A)],
+                      onTap: _claimDaily,
+                    ).animate().scaleXY(begin: 0.9, end: 1.0, duration: 400.ms, curve: Curves.easeOutBack),
+                    const SizedBox(height: 10),
                   ],
-                  
-                  _PremiumButton(text: "ABRIR CAJA (-1)", icon: Icons.unarchive_rounded, gradient: _boxes > 0 ? const [Colors.blue, Colors.lightBlueAccent] : const [Colors.grey, Colors.blueGrey], isPulsing: _boxes > 0, onTap: _openBox),
-                  const SizedBox(height: 12),
-                  
-                  _PremiumButton(text: "VER VIDEO PARA CAJA GRATIS", icon: Icons.play_circle_fill_rounded, gradient: const [Colors.purple, Colors.purpleAccent], onTap: _watchAdForBox),
-                  const SizedBox(height: 12),
-                  
-                  _PremiumButton(text: "CONSIGUE MÁS CAJAS", icon: Icons.store_rounded, gradient: const [Colors.orange, Colors.amber], onTap: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (context) => const ShopRealScreen()));
-                    _loadData(); 
-                  }),
+
+                  _ActionCard(
+                    icon: globalAdsRemoved ? Icons.star_rounded : Icons.play_circle_fill_rounded,
+                    title: globalAdsRemoved ? AppLocale.claimPremiumBox.getString(context) : AppLocale.watchVideoFreeBox.getString(context),
+                    gradientColors: _freeBoxesToday < 5 
+                      ? const [Color(0xFF6A1B9A), Color(0xFFCE93D8)] 
+                      : [Colors.grey[800]!, Colors.grey[600]!], 
+                    onTap: _watchAdForBox,
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 5),
+            const SizedBox(height: 15),
 
-            // --- LISTA DE SKINS ---
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildCategorySection("CAMINO DE TROFEOS", Colors.cyanAccent, _trophySkins),
-                  _buildCategorySection("COMUNES", const Color(0xFF9BE15D), _commonSkins),
-                  _buildCategorySection("RARAS", Colors.blueAccent, _rareSkins),
-                  _buildCategorySection("ÉPICAS", Colors.purpleAccent, _epicSkins),
-                  _buildCategorySection("LEGENDARIAS", Colors.orangeAccent, _legendarySkins),
-                  _buildCategorySection("CHAMPIONS", Colors.redAccent, _championSkins),
-                  const SizedBox(height: 40), 
-                ],
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                  boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, -4))],
+                ),
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    _buildCategorySection(AppLocale.trophyRoad.getString(context), Colors.cyanAccent, _trophySkins),
+                    _buildCategorySection(AppLocale.commons.getString(context), const Color(0xFF9BE15D), _commonSkins),
+                    _buildCategorySection(AppLocale.rares.getString(context), Colors.blueAccent, _rareSkins),
+                    _buildCategorySection(AppLocale.epics.getString(context), Colors.purpleAccent, _epicSkins),
+                    _buildCategorySection(AppLocale.legendaries.getString(context), Colors.orangeAccent, _legendarySkins),
+                    _buildCategorySection(AppLocale.champions.getString(context), Colors.redAccent, _championSkins),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ],
@@ -299,21 +543,22 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: 20, bottom: 12, left: 5),
-          child: _BorderedText(text: title, fontSize: 24, fillColor: color, strokeColor: Colors.black87, strokeWidth: 5),
+          padding: const EdgeInsets.only(bottom: 12, left: 5),
+          child: _BorderedText(text: title, fontSize: 22, fillColor: color, strokeColor: Colors.black87, strokeWidth: 5),
         ),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 15, childAspectRatio: 0.68),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 12, childAspectRatio: 0.65,
+          ),
           itemCount: skins.length,
           itemBuilder: (context, index) {
             final skin = skins[index];
             bool isUnlocked = false;
             int currentProgress = 0;
 
-            // LÓGICA DEBUG + PRODUCCIÓN (VISUAL)
-            if (kDebugUnlockAll || skin.id == 'ball_standar') {
+            if (kDebugUnlockAll || skin.id == 'ball_default') {
               isUnlocked = true;
             } else if (skin.isLevelReward) {
               isUnlocked = _highScore >= skin.requiredAmount;
@@ -330,9 +575,9 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   color: isSelected ? skin.rarityColor.withOpacity(0.2) : const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: isSelected ? Colors.white : skin.rarityColor, width: isSelected ? 4 : 2),
-                  boxShadow: isSelected ? [BoxShadow(color: skin.rarityColor.withOpacity(0.6), blurRadius: 10, spreadRadius: 2)] : [const BoxShadow(color: Colors.black54, offset: Offset(0, 4))],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isSelected ? Colors.white : skin.rarityColor, width: isSelected ? 3 : 2),
+                  boxShadow: isSelected ? [BoxShadow(color: skin.rarityColor.withOpacity(0.6), blurRadius: 8)] : [const BoxShadow(color: Colors.black54, offset: Offset(0, 3))],
                 ),
                 child: Stack(
                   children: [
@@ -341,44 +586,45 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
                         Expanded(
                           child: Center(
                             child: Opacity(
-                              opacity: isUnlocked ? 1.0 : 0.6,
+                              opacity: isUnlocked ? 1.0 : 0.4,
                               child: Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: Image.asset(skin.path, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.sports_baseball, size: 40, color: Colors.white24)),
+                                padding: const EdgeInsets.all(8.0),
+                                child: Image.asset(skin.path, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.sports_baseball, size: 30, color: Colors.white24)),
                               ),
                             ),
                           ),
                         ),
-                        
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 4),
                           decoration: BoxDecoration(
                             color: isUnlocked ? (isSelected ? skin.rarityColor : Colors.black87) : Colors.black87,
-                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
                             border: Border(top: BorderSide(color: skin.rarityColor, width: 2)),
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (isUnlocked)
-                                Text(isSelected ? "EQUIPADA" : "USAR", style: TextStyle(fontFamily: 'Impact', fontSize: 14, color: isSelected ? Colors.black87 : Colors.white))
+                                Text(
+                                  isSelected ? AppLocale.active.getString(context) : AppLocale.use.getString(context),
+                                  style: TextStyle(fontFamily: 'Impact', fontSize: 12, color: isSelected ? Colors.black87 : Colors.white),
+                                )
                               else if (skin.isLevelReward)
-                                Text("${skin.requiredAmount} PTS", style: const TextStyle(fontFamily: 'Impact', fontSize: 14, color: Colors.cyanAccent))
+                                Text("${skin.requiredAmount}PTS", style: const TextStyle(fontFamily: 'Impact', fontSize: 12, color: Colors.cyanAccent))
                               else ...[
-                                Text("$currentProgress / ${skin.requiredAmount}", style: TextStyle(fontFamily: 'Impact', fontSize: 12, color: skin.rarityColor)),
-                                const SizedBox(height: 3),
+                                Text("$currentProgress/${skin.requiredAmount}", style: TextStyle(fontFamily: 'Impact', fontSize: 11, color: skin.rarityColor)),
+                                const SizedBox(height: 2),
                                 Container(
-                                  height: 8,
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.black, width: 1)),
+                                  height: 6, margin: const EdgeInsets.symmetric(horizontal: 6),
+                                  decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(3), border: Border.all(color: Colors.black, width: 1)),
                                   alignment: Alignment.centerLeft,
                                   child: FractionallySizedBox(
                                     widthFactor: (currentProgress / skin.requiredAmount).clamp(0.0, 1.0),
                                     child: Container(decoration: BoxDecoration(color: skin.rarityColor, borderRadius: BorderRadius.circular(3))),
                                   ),
-                                )
-                              ]
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -386,10 +632,7 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
                     ),
                     if (!isUnlocked)
                       Positioned.fill(
-                        child: Align(
-                          alignment: const Alignment(0, -0.2), 
-                          child: Icon(Icons.lock_rounded, size: 45, color: Colors.white.withOpacity(0.9), shadows: const [Shadow(color: Colors.black, blurRadius: 10)]),
-                        ),
+                        child: Align(alignment: const Alignment(0, -0.2), child: Icon(Icons.lock_rounded, size: 35, color: Colors.white.withOpacity(0.9), shadows: const [Shadow(color: Colors.black, blurRadius: 6)])),
                       ),
                   ],
                 ),
@@ -397,12 +640,75 @@ class _ShopVirtualScreenState extends State<ShopVirtualScreen> {
             );
           },
         ),
+        const SizedBox(height: 20),
       ],
     );
   }
 }
 
 // ================= CLASES AUXILIARES =================
+
+class _ActionCard extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+  final bool isPulsing;
+
+  const _ActionCard({required this.icon, required this.title, required this.gradientColors, required this.onTap, this.isPulsing = false});
+
+  @override
+  State<_ActionCard> createState() => _ActionCardState();
+}
+
+class _ActionCardState extends State<_ActionCard> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card = GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) { setState(() => _isPressed = false); widget.onTap(); },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        width: double.infinity, height: 55, 
+        margin: EdgeInsets.only(top: _isPressed ? 4.0 : 0.0),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: widget.gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+          boxShadow: _isPressed ? [] : [BoxShadow(color: widget.gradientColors.last.withOpacity(0.5), offset: const Offset(0, 4), blurRadius: 6), const BoxShadow(color: Colors.black45, offset: Offset(0, 3), blurRadius: 3)],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Container(
+                height: 20,
+                decoration: BoxDecoration(borderRadius: const BorderRadius.vertical(top: Radius.circular(14)), gradient: LinearGradient(colors: [Colors.white.withOpacity(0.2), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+              ),
+            ),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(widget.icon, color: Colors.white, size: 22, shadows: const [Shadow(color: Colors.black45, offset: Offset(1, 1), blurRadius: 2)]),
+                  const SizedBox(width: 6),
+                  Text(widget.title, style: const TextStyle(fontFamily: 'Impact', fontSize: 16, color: Colors.white, letterSpacing: 0.8, shadows: [Shadow(color: Colors.black45, offset: Offset(1, 1), blurRadius: 2)])),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (widget.isPulsing) {
+      return card.animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(begin: 1.0, end: 1.03, duration: 800.ms);
+    }
+    return card;
+  }
+}
 
 class _BorderedText extends StatelessWidget {
   final String text;
@@ -422,58 +728,5 @@ class _BorderedText extends StatelessWidget {
         Text(text, textAlign: TextAlign.center, style: TextStyle(fontSize: fontSize, fontFamily: 'Impact', color: fillColor)),
       ],
     );
-  }
-}
-
-class _PremiumButton extends StatefulWidget {
-  final String text;
-  final List<Color> gradient;
-  final VoidCallback onTap;
-  final IconData icon;
-  final bool isPulsing;
-
-  const _PremiumButton({required this.text, required this.gradient, required this.onTap, required this.icon, this.isPulsing = false});
-
-  @override
-  State<_PremiumButton> createState() => _PremiumButtonState();
-}
-
-class _PremiumButtonState extends State<_PremiumButton> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget buttonContent = GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) { setState(() => _isPressed = false); widget.onTap(); },
-      onTapCancel: () => setState(() => _isPressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        height: 60,
-        margin: EdgeInsets.only(top: _isPressed ? 4.0 : 0.0),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: widget.gradient, begin: Alignment.topCenter, end: Alignment.bottomCenter),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.black87, width: 3),
-          boxShadow: _isPressed ? [] : [const BoxShadow(color: Colors.black87, offset: Offset(0, 5))],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(widget.icon, color: Colors.white, size: 28, shadows: const [Shadow(color: Colors.black54, offset: Offset(1, 1))]),
-              const SizedBox(width: 10),
-              Flexible(child: _BorderedText(text: widget.text, fontSize: 22, fillColor: Colors.white, strokeColor: Colors.black87, strokeWidth: 5)),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (widget.isPulsing) {
-      return buttonContent.animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(begin: 1.0, end: 1.02, duration: 800.ms);
-    }
-    return buttonContent;
   }
 }

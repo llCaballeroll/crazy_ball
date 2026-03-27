@@ -1,10 +1,10 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/effects.dart';
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import '../world/crazy_ball_game.dart';
 
-class Coin extends CircleComponent with HasGameRef<CrazyBallGame> {
+class Coin extends CircleComponent with HasGameRef<FlameGame> {
   final double coinRadius = 12.0;
 
   Coin({required Vector2 position}) : super(radius: 12.0, position: position, anchor: Anchor.center);

@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: En el futuro cambia esto por tu paquete real ej. "com.tuempresa.crazyball"
-        applicationId = "com.example.crazy_ball"
+        applicationId = "com.luiscaballero.bounceroyale"
         
         // MODIFICACIÓN: Subimos el SDK mínimo requerido por Ads y Games Services
         minSdk = 24 

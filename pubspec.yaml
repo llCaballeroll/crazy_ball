@@ -61,6 +61,10 @@ dependencies:
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
   animate_do: ^4.2.0
+  vibration: ^3.1.8
+
+  share_plus: ^12.0.1
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +76,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.4.7
+  flutter_launcher_icons: ^0.14.4
+  rename: ^3.1.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -88,6 +95,19 @@ flutter:
   assets:
     - assets/images/
     - assets/audio/
+    - assets/images/wallpapers/
+    - assets/images/ball/
+    - assets/images/ball/level/
+    - assets/images/ball/pay/
+    - assets/images/ball/pay/champion/
+    - assets/images/ball/pay/common/
+    - assets/images/ball/pay/epic/
+    - assets/images/ball/pay/rare/
+    - assets/images/ball/pay/legendary/
+    - assets/images/onboarding/
+    - assets/images/principales/
+    - assets/audio/sounds/
+    - assets/audio/musics/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -114,3 +134,23 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+
+flutter_native_splash:
+  color: "#000000" # Fondo negro
+  # Asegúrate de que esta imagen exista y la ruta sea correcta
+  image: assets/images/principales/icon.png 
+  
+  # Configuración específica para Android 12+ (muy importante hoy en día)
+  android_12:
+    color: "#000000"
+    image: assets/images/principales/icon.png
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/principales/icon_sin_margen.png" # Usamos el mismo ícono que el splash
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"  # O el color de fondo de tu marca
+  adaptive_icon_foreground: "assets/images/principales/icon_sin_margen.png"
