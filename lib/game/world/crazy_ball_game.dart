@@ -18,7 +18,7 @@ import '../../services/sound_manager.dart';
 // ==========================================
 // MODO DEBUG / DESARROLLADOR
 // Cambia a 'false' antes de publicar a producción
-const bool kEnableDebugMenu = true;
+const bool kEnableDebugMenu = false;
 // ==========================================
 
 enum GameState { menu, ready, playing, gameOver }

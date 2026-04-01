@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,7 +9,8 @@ plugins {
 }
 
 android {
-    namespace = "com.example.crazy_ball"
+    // 1. NAMESPACE CORREGIDO
+    namespace = "com.luiscaballero.bounceroyale"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -19,23 +23,35 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    // 2. CONFIGURACIÓN DE FIRMA PARA PRODUCCIÓN (Release)
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+
     defaultConfig {
-        // TODO: En el futuro cambia esto por tu paquete real ej. "com.tuempresa.crazyball"
         applicationId = "com.luiscaballero.bounceroyale"
-        
-        // MODIFICACIÓN: Subimos el SDK mínimo requerido por Ads y Games Services
         minSdk = 24 
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        
-        // MODIFICACIÓN: Habilita multidex para evitar problemas con muchas dependencias
         multiDexEnabled = true 
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // 3. APLICAMOS LA FIRMA AL MODO RELEASE
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

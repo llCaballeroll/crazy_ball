@@ -15,7 +15,7 @@ import '../../services/sound_manager.dart';
 // ⚙️ CONFIGURACIÓN DE ENTORNO
 // Cambia kDevMode a FALSE antes de compilar para producción (Google Play / App Store)
 // ============================================================================
-const bool kDevMode = true; 
+const bool kDevMode = false; 
 
 class ShopRealScreen extends StatefulWidget {
   const ShopRealScreen({super.key});

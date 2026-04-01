@@ -19,7 +19,7 @@ import 'crazy_ball_game.dart' show skinIdToFlamePath;
 
 // ==========================================
 // MODO DEBUG / DESARROLLADOR
-const bool kEnableDebugMenu = true; 
+const bool kEnableDebugMenu = false; 
 // ==========================================
 
 const List<String> _kBotSkinPaths = [

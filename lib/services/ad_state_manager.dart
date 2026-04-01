@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// ⚠️ IMPORTANTE:
 /// false -> Usa IDs de prueba (Seguro para testers y desarrollo).
 /// true  -> Usa IDs reales (CAMBIAR A TRUE SOLO ANTES DE SUBIR A LAS TIENDAS).
-const bool isProductionMode = false;
+const bool isProductionMode = true;
 
 // --------------------------------------------------------------------------
 // 1. CONSTANTES GLOBALES (IDs REALES - BOUNCE ROYALE)

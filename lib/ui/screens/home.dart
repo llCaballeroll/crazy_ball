@@ -18,6 +18,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_localization/flutter_localization.dart'; // PAQUETE DE IDIOMAS
 import '../../l10n/app_locale.dart'; // DICCIONARIO
 
+// 🎮 IMPORTACIÓN DE GAME SERVICES
+import 'package:games_services/games_services.dart';
+
 import '../widgets/vs_podium_overlay.dart';
 import '../../main.dart';
 import 'settings_screen.dart';
@@ -33,6 +36,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // ==========================================
+  // 🏆 IDs DE TUS MARCADORES (¡Cámbialos aquí!)
+  // ==========================================
+  final String _androidLeaderboardID = "CgkIprqit9UNEAIQAQ";
+  final String _iosLeaderboardID = "AQUI_TU_ID_DE_IOS";
+
   late final CrazyBallGame _classicGame;
   late final CrazyBallVsGame _vsGame;
 
@@ -59,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _classicGame = CrazyBallGame();
     _vsGame = CrazyBallVsGame();
 
+    _signInToGamesServices(); // 🔑 INICIAMOS SESIÓN AL ENTRAR
     _loadHighScore();
     _loadSelectedSkin();
     _playHomeMusic();
@@ -77,6 +87,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _bannerAd?.dispose();
     _rewardedAd?.dispose();
     super.dispose();
+  }
+
+  // 🔑 FUNCIÓN PARA INICIAR SESIÓN EN GOOGLE PLAY / GAME CENTER
+  Future<void> _signInToGamesServices() async {
+    try {
+      await GameAuth.signIn();
+      debugPrint("✅ Sesión iniciada en Games Services");
+    } catch (e) {
+      debugPrint("❌ Error al iniciar sesión en Games Services: $e");
+    }
   }
 
   Future<void> _checkDailyLives() async {
@@ -288,12 +308,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'assets/images/ball/ball_default.png';
   }
 
+  // 🏆 LÓGICA DE SUBIR SCORE ACTUALIZADA
   void _checkHighScore() async {
     final currentScore = _activeMode == ActiveGameMode.classic ? _classicGame.scoreNotifier.value : _vsGame.scoreNotifier.value;
     if (currentScore > _highScore) {
       _highScore = currentScore;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('highScore', _highScore);
+      
+      // Sube la puntuación en segundo plano a Google Play / Game Center
+      try {
+        await GamesServices.submitScore(
+          score: Score(
+            androidLeaderboardID: _androidLeaderboardID,
+            iOSLeaderboardID: _iosLeaderboardID,
+            value: _highScore,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error subiendo score a la nube: $e');
+      }
     }
   }
 
@@ -428,7 +462,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 25), 
                     
-                    // BOTÓN NIVELES
                     _GradientButton(
                       text: AppLocale.levels.getString(context), 
                       width: 140, 
@@ -437,29 +470,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const LevelScreen())); }
                     ).animate().scaleXY(begin: 0.8, end: 1.0, duration: 400.ms, curve: Curves.easeOutBack),
                     
-const Spacer(flex: 2),
+                    const Spacer(flex: 2),
                     Row(
                       children: [
-                        // BOTÓN AVENTURA (Adaptable a cualquier pantalla)
                         Expanded(
                           child: _GradientButton(
                             text: AppLocale.adventure.getString(context), 
-                            width: double.infinity, // <-- Magia de diseño adaptable
+                            width: double.infinity, 
                             height: 65, 
-                            fontSize: 18, // <-- Bajamos a 18 para proteger idiomas largos como el Alemán
+                            fontSize: 18, 
                             gradientColors: const [Color(0xFFFFCA28), Color(0xFFE65100)], 
                             onTap: () => _handlePlayRequest(ActiveGameMode.classic)
                           ).animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(begin: 1.0, end: 1.05, duration: 800.ms, curve: Curves.easeInOut),
                         ),
                         
-                        // SEPARADOR PERFECTO
                         const SizedBox(width: 15), 
                         
-                        // BOTÓN VS (Adaptable a cualquier pantalla)
                         Expanded(
                           child: _GradientButton(
                             text: AppLocale.vs.getString(context), 
-                            width: double.infinity, // <-- Magia de diseño adaptable
+                            width: double.infinity, 
                             height: 65, 
                             fontSize: 18, 
                             gradientColors: const [Color(0xFFFF5252), Color(0xFFB71C1C)], 
@@ -474,7 +504,26 @@ const Spacer(flex: 2),
                       children: [
                         _GradientButton(icon: Icons.settings_rounded, width: 70, height: 60, gradientColors: const [Color(0xFFBDBDBD), Color(0xFF616161)], onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())); }),
                         _GradientButton(text: AppLocale.shop.getString(context), width: 120, height: 60, gradientColors: const [Color(0xFFCE93D8), Color(0xFF6A1B9A)], onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => const ShopVirtualScreen())); _loadSelectedSkin(); _playHomeMusic(); }),
-                        _GradientButton(icon: Icons.leaderboard_rounded, width: 70, height: 60, gradientColors: const [Color(0xFF42A5F5), Color(0xFF1565C0)], onTap: () {}),
+                        
+                        // 🏆 BOTÓN DE MARCADOR GLOBAL CONECTADO
+                        _GradientButton(
+                          icon: Icons.leaderboard_rounded, 
+                          width: 70, 
+                          height: 60, 
+                          gradientColors: const [Color(0xFF42A5F5), Color(0xFF1565C0)], 
+                          onTap: () async {
+                            try {
+                              await GamesServices.showLeaderboards(
+                                androidLeaderboardID: _androidLeaderboardID,
+                                iOSLeaderboardID: _iosLeaderboardID,
+                              );
+                            } catch (e) {
+                              // Intenta iniciar sesión si no estaba logueado
+                              await _signInToGamesServices();
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Iniciando sesión en Juegos... Toca de nuevo.", style: TextStyle(fontFamily: 'Impact'))));
+                            }
+                          }
+                        ),
                       ],
                     ),
                   ],
